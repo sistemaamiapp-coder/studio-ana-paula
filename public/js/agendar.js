@@ -483,15 +483,9 @@ function renderIdentify() {
           <input class="input" id="idName" name="name" autocomplete="name" placeholder="Como no seu cadastro" required>
           <span class="hint">Use o mesmo nome completo e celular das outras marcações.</span>
         </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="idPhone">WhatsApp com DDD</label>
-            <input class="input" id="idPhone" name="phone" inputmode="tel" autocomplete="tel" placeholder="(27) 99999-0000" required>
-          </div>
-          <div class="field">
-            <label for="idBirth">Aniversário <span class="hint">(opcional)</span></label>
-            <input class="input" id="idBirth" name="birthdate" type="date">
-          </div>
+        <div class="field">
+          <label for="idPhone">WhatsApp com DDD</label>
+          <input class="input" id="idPhone" name="phone" inputmode="tel" autocomplete="tel" placeholder="(27) 99999-0000" required>
         </div>
         <p class="field-error" id="identifyError" role="alert"></p>
         <button class="btn btn-primary btn-lg btn-block" type="submit">Continuar ${icon('arrowRight', 16)}</button>
@@ -515,7 +509,7 @@ function renderIdentify() {
       errorBox.textContent = 'Confira o WhatsApp com DDD.';
       return;
     }
-    state.client = { name, phone, birthdate: data.birthdate || null };
+    state.client = { name, phone };
     rememberIdentity(state.client);
     goTo(4);
   });
@@ -578,7 +572,6 @@ async function submitBooking() {
       body: {
         name: state.client.name,
         phone: state.client.phone,
-        birthdate: state.client.birthdate || null,
         serviceId: state.service.id,
         date: state.date,
         time: state.time,
