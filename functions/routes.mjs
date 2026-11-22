@@ -576,6 +576,13 @@ export function application({ db, storage, live }) {
     const map = Object.fromEntries(stored.map(row => [row.key, row.value]));
     const whatsapp = map.whatsapp || BUSINESS.whatsapp;
     const percent = Number(map.depositPercent);
+    let portfolioCategories = Object.keys(CATEGORIES);
+    if (map.portfolioCategories) {
+      try {
+        const parsed = JSON.parse(map.portfolioCategories);
+        if (Array.isArray(parsed)) portfolioCategories = parsed.map(normalizeCategory).filter(Boolean);
+      } catch { /* lista antiga inválida: mantém o padrão */ }
+    }
     return {
       whatsapp,
       whatsappDisplay: phoneDisplay(whatsapp),
@@ -585,7 +592,8 @@ export function application({ db, storage, live }) {
       pixKey: map.pixKey || BUSINESS.pixKey,
       pixName: map.pixName || BUSINESS.pixName,
       pixCity: map.pixCity || BUSINESS.pixCity,
-      depositPercent: Number.isFinite(percent) && percent >= 0 && percent <= 100 ? percent : BUSINESS.depositPercent
+      depositPercent: Number.isFinite(percent) && percent >= 0 && percent <= 100 ? percent : BUSINESS.depositPercent,
+      portfolioCategories
     };
   }
 
@@ -610,6 +618,13 @@ export function application({ db, storage, live }) {
       password_hash: hash, birthdate: null, role: 'admin',
       notes: 'Conta principal do estúdio.', created_at: new Date().toISOString()
     }));
+  }
+
+  async function savePortfolioCategories(keys) {
+    const unique = [...new Set(keys.map(normalizeCategory).filter(Boolean))];
+    if (!unique.length) fail(400, 'O portfólio precisa de pelo menos uma categoria.');
+    await saveSettings({ portfolioCategories: JSON.stringify(unique) });
+    return unique;
   }
 
   async function setAdminEmail(email) {
@@ -1655,12 +1670,62 @@ export function application({ db, storage, live }) {
 
     if (path === '/api/admin/portfolio' && method === 'GET') {
       await requireAdmin(request);
-      const portfolio = await loadPortfolio();
+      const [portfolio, settings] = await Promise.all([loadPortfolio(), getSettings()]);
+      const used = portfolio.map(item => item.category);
+      const categories = [...new Set([...settings.portfolioCategories, ...used])];
       return json({
+        categories,
         portfolio: portfolio
           .sort((a, b) => (a.sort - b.sort) || String(b.id).localeCompare(String(a.id)))
           .map(item => ({ ...item, image: portfolioImageUrl(item) }))
       });
+    }
+
+    if (path === '/api/admin/portfolio/categories' && method === 'POST') {
+      await requireAdmin(request);
+      const body = await readBody(request);
+      const key = normalizeCategory(body.name);
+      if (!key) fail(400, 'Informe o nome da categoria.');
+      const settings = await getSettings();
+      if (settings.portfolioCategories.includes(key)) fail(400, 'Essa categoria já existe.');
+      const categories = await savePortfolioCategories([...settings.portfolioCategories, key]);
+      return json({ categories, key }, 201);
+    }
+
+    if (path === '/api/admin/portfolio/categories' && method === 'PATCH') {
+      await requireAdmin(request);
+      const body = await readBody(request);
+      const from = normalizeCategory(body.from);
+      const to = normalizeCategory(body.to);
+      if (!from) fail(400, 'Categoria não encontrada.');
+      if (!to) fail(400, 'Informe o novo nome da categoria.');
+      if (from === to) fail(400, 'Escolha um nome diferente para a categoria.');
+      const [portfolio, settings] = await Promise.all([loadPortfolio(), getSettings()]);
+      const known = settings.portfolioCategories.includes(from) || portfolio.some(item => item.category === from);
+      if (!known) fail(404, 'Categoria não encontrada.');
+      const affected = portfolio.filter(item => item.category === from);
+      for (const item of affected) {
+        rows(await db.from('portfolio').update({ category: to }).eq('id', item.id));
+      }
+      const categories = await savePortfolioCategories(settings.portfolioCategories.filter(key => key !== from).concat(to));
+      return json({ categories, key: to, moved: affected.length });
+    }
+
+    const adminCategory = path.match(/^\/api\/admin\/portfolio\/categories\/([^/]+)$/);
+    if (adminCategory && method === 'DELETE') {
+      await requireAdmin(request);
+      const from = normalizeCategory(decodeURIComponent(adminCategory[1]));
+      const [portfolio, settings] = await Promise.all([loadPortfolio(), getSettings()]);
+      if (!settings.portfolioCategories.includes(from)) fail(404, 'Categoria não encontrada.');
+      const remaining = settings.portfolioCategories.filter(key => key !== from);
+      if (!remaining.length) fail(400, 'O portfólio precisa de pelo menos uma categoria.');
+      const target = remaining[0];
+      const affected = portfolio.filter(item => item.category === from);
+      for (const item of affected) {
+        rows(await db.from('portfolio').update({ category: target }).eq('id', item.id));
+      }
+      const categories = await savePortfolioCategories(remaining);
+      return json({ categories, movedTo: target, moved: affected.length });
     }
 
     if (path === '/api/admin/portfolio/sign' && method === 'POST') {
@@ -1715,6 +1780,10 @@ export function application({ db, storage, live }) {
         sort: maxSort + 1, created_at: new Date().toISOString()
       };
       rows(await db.from('portfolio').insert(item));
+      const settings = await getSettings();
+      if (!settings.portfolioCategories.includes(category)) {
+        await savePortfolioCategories([...settings.portfolioCategories, category]);
+      }
       await notify({ type: 'portfolio:changed', title: 'Portfólio atualizado', message: `Nova foto publicada: ${title}.` });
       return json({ item: { ...item, image: portfolioImageUrl(item) } }, 201);
     }

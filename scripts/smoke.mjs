@@ -238,6 +238,21 @@ async function main() {
   assert.equal(portfolioPost.data.item.category, 'sobrancelhas-design', 'categoria nova deveria ser normalizada');
   const siteWithPortfolio = await call('/api/site');
   assert.ok(siteWithPortfolio.data.portfolio.some(item => item.category === 'sobrancelhas-design'), 'categoria nova deveria aparecer no site');
+
+  const catAdded = await call('/api/admin/portfolio/categories', { method: 'POST', cookie: adminCookie, body: { name: 'Design de Olhar' } });
+  assert.equal(catAdded.status, 201, `criação de categoria falhou: ${JSON.stringify(catAdded.data)}`);
+  assert.ok(catAdded.data.categories.includes('design-de-olhar'), 'categoria criada deveria entrar na lista');
+  const catRenamed = await call('/api/admin/portfolio/categories', { method: 'PATCH', cookie: adminCookie, body: { from: 'design-de-olhar', to: 'Sobrancelhas' } });
+  assert.equal(catRenamed.status, 200, `renomeio de categoria falhou: ${JSON.stringify(catRenamed.data)}`);
+  assert.ok(catRenamed.data.categories.includes('sobrancelhas') && !catRenamed.data.categories.includes('design-de-olhar'), 'renomeio deveria trocar a chave');
+  const catRemoved = await call('/api/admin/portfolio/categories/sobrancelhas', { method: 'DELETE', cookie: adminCookie });
+  assert.equal(catRemoved.status, 200, `exclusão de categoria falhou: ${JSON.stringify(catRemoved.data)}`);
+  assert.ok(!catRemoved.data.categories.includes('sobrancelhas'), 'categoria excluída deveria sair da lista');
+  const catWithPhotos = await call('/api/admin/portfolio/categories/sobrancelhas-design', { method: 'DELETE', cookie: adminCookie });
+  assert.equal(catWithPhotos.status, 200, `exclusão de categoria com fotos falhou: ${JSON.stringify(catWithPhotos.data)}`);
+  assert.equal(catWithPhotos.data.moved, 1, 'a foto deveria ser movida para outra categoria');
+  const siteAfterMove = await call('/api/site');
+  assert.ok(siteAfterMove.data.portfolio.some(item => item.category === catWithPhotos.data.movedTo), 'foto movida deveria aparecer na categoria de destino');
   await call(`/api/admin/portfolio/${sign.data.id}`, { method: 'DELETE', cookie: adminCookie });
 
   const passChanged = await call('/api/admin/settings', { method: 'PATCH', cookie: adminCookie, body: { adminPassword: 'nova-senha-2026' } });

@@ -812,13 +812,12 @@ async function toggleService(id) {
    portfólio
    ============================================================ */
 async function viewPortfolio(root, token) {
-  const [{ portfolio }, services] = await Promise.all([
+  const [{ portfolio, categories: savedCategories = [] }] = await Promise.all([
     api('/api/admin/portfolio'),
     loadServices().catch(() => [])
   ]);
   if (token !== state.renderToken) return;
-  const cats = state.categories;
-  const catKeys = [...new Set([...Object.keys(cats), ...portfolio.map(item => item.category)])];
+  const catKeys = [...new Set([...savedCategories, ...portfolio.map(item => item.category)])];
 
   root.innerHTML = `
     <div class="adm-grid-2">
@@ -839,6 +838,22 @@ async function viewPortfolio(root, token) {
           <p class="form-error" id="pfError"></p>
           <button class="btn btn-primary btn-sm btn-block" type="submit" id="pfSave">Publicar no portfólio</button>
         </form>
+      </section>
+      <section class="adm-card">
+        ${cardHead('Categorias', 'Renomeie ou exclua categorias do portfólio')}
+        <div class="cat-list">
+          ${catKeys.map(key => {
+            const count = portfolio.filter(item => item.category === key).length;
+            return `<div class="cat-row">
+              <span class="cat-name">${esc(categoryLabel(key))}</span>
+              <span class="cat-count">${count} foto${count === 1 ? '' : 's'}</span>
+              <button class="qbtn" type="button" data-act="cat-edit" data-key="${esc(key)}" title="Renomear categoria" aria-label="Renomear ${esc(categoryLabel(key))}">${icon('edit', 12)}</button>
+              <button class="qbtn" type="button" data-act="cat-del" data-key="${esc(key)}" title="Excluir categoria" aria-label="Excluir ${esc(categoryLabel(key))}" ${catKeys.length < 2 ? 'disabled' : ''}>${icon('trash', 12)}</button>
+            </div>`;
+          }).join('')}
+        </div>
+        <p class="inline-note">Ao excluir, as fotos da categoria são movidas para a primeira categoria da lista.</p>
+        <button class="btn btn-outline btn-sm btn-block" type="button" data-act="cat-new">${icon('plus', 14)} Nova categoria</button>
       </section>
       <section class="adm-card">
         ${cardHead('Fotos publicadas', `${portfolio.length} imagem(ns) na vitrine`)}
@@ -937,6 +952,69 @@ async function deletePortfolio(id) {
     renderView();
   } catch (error) {
     notifyError(error, 'Não foi possível remover');
+  }
+}
+
+function openCategoryModal(category = null) {
+  const isEdit = Boolean(category);
+  openModal(`
+    <button class="modal-close" type="button" data-close aria-label="Fechar">${icon('x', 18)}</button>
+    <h3>${isEdit ? 'Renomear categoria' : 'Nova categoria'}</h3>
+    <p class="modal-sub">${isEdit ? 'As fotos desta categoria passam para o novo nome.' : 'A categoria fica disponível para publicar fotos.'}</p>
+    <form class="adm-form" id="catForm" novalidate>
+      <div class="field"><label for="catName">Nome</label><input class="input" id="catName" maxlength="40" value="${esc(isEdit ? categoryLabel(category) : '')}" placeholder="Ex: Sobrancelhas" required /></div>
+      <p class="form-error" id="catError"></p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" type="button" data-close>Cancelar</button>
+        <button class="btn btn-primary" type="submit" id="catSave">${isEdit ? 'Renomear' : 'Adicionar'}</button>
+      </div>
+    </form>`, {
+    size: 'modal-sm',
+    onMount(el, close) {
+      const input = $('#catName', el);
+      input.focus();
+      input.select();
+      $('#catForm', el).addEventListener('submit', async event => {
+        event.preventDefault();
+        const errorEl = $('#catError', el);
+        errorEl.textContent = '';
+        const name = input.value.trim();
+        if (name.length < 2) { errorEl.textContent = 'Dê um nome para a categoria.'; return; }
+        const button = $('#catSave', el);
+        setButtonBusy(button, true, 'Salvando...');
+        try {
+          if (isEdit) {
+            const { moved } = await api('/api/admin/portfolio/categories', { method: 'PATCH', body: { from: category, to: name } });
+            toast(moved ? `Categoria renomeada · ${moved} foto(s) atualizada(s).` : 'Categoria renomeada.', { type: 'success', title: 'Categorias' });
+          } else {
+            await api('/api/admin/portfolio/categories', { method: 'POST', body: { name } });
+            toast('Categoria criada.', { type: 'success', title: 'Categorias' });
+          }
+          close();
+          renderView();
+        } catch (error) {
+          errorEl.textContent = error.message;
+          setButtonBusy(button, false);
+        }
+      });
+    }
+  });
+}
+
+async function deleteCategory(key) {
+  const confirmed = await confirmAction({
+    title: 'Excluir esta categoria?',
+    message: 'As fotos dela são movidas para a primeira categoria da lista e a categoria sai do portfólio.',
+    confirmLabel: 'Excluir categoria',
+    danger: true
+  });
+  if (!confirmed) return;
+  try {
+    const { moved, movedTo } = await api(`/api/admin/portfolio/categories/${enc(key)}`, { method: 'DELETE' });
+    toast(moved ? `Categoria excluída · ${moved} foto(s) foram para ${categoryLabel(movedTo)}.` : 'Categoria excluída.', { type: 'success', title: 'Categorias' });
+    renderView();
+  } catch (error) {
+    notifyError(error, 'Não foi possível excluir');
   }
 }
 
@@ -1915,6 +1993,15 @@ function handleAction(button, event) {
       break;
     case 'pf-del':
       deletePortfolio(button.dataset.id);
+      break;
+    case 'cat-new':
+      openCategoryModal();
+      break;
+    case 'cat-edit':
+      openCategoryModal(button.dataset.key);
+      break;
+    case 'cat-del':
+      deleteCategory(button.dataset.key);
       break;
     case 'fin-del':
       deleteFinance(button.dataset.id);
