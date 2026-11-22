@@ -1,0 +1,28 @@
+name = "app"
+main = "serverless/worker.mjs"
+compatibility_date = "2026-11-01"
+
+[observability]
+enabled = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "studio-ana-paula"
+database_id = "6daa50d3-5c52-4565-9b6f-f3f0c7cac2d6"
+
+[[kv_namespaces]]
+binding = "MEDIA"
+id = "d327d0d767fb4b87beb5ceae6351f84c"
+
+[[durable_objects.bindings]]
+name = "LIVE"
+class_name = "LiveHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LiveHub"]

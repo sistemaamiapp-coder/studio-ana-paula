@@ -1,0 +1,27 @@
+{
+  "name": "studio-ana-paula",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Studio Ana Paula Souza — agenda, clientes e financeiro para lash & nails",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "wrangler dev",
+    "db:local": "wrangler d1 execute studio-ana-paula --local --file serverless/schema.sql",
+    "test": "node scripts/smoke.mjs",
+    "check:live": "node scripts/check-live.mjs",
+    "deploy": "node scripts/deploy-cloudflare.mjs"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "multer": "^2.5.0",
+    "qrcode": "^1.5.4",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.166.0"
+  }
+}
