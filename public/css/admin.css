@@ -515,6 +515,16 @@
 .form-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
 .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .form-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+.pass-field { position: relative; display: flex; }
+.pass-field .input { width: 100%; padding-right: 40px; }
+.pass-toggle {
+  position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  width: 30px; height: 30px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--muted); cursor: pointer;
+  display: grid; place-items: center;
+}
+.pass-toggle:hover { color: var(--rose-deep); background: var(--rose-tint); }
+.pass-toggle:focus-visible { outline: 2px solid var(--rose); outline-offset: 1px; }
 .modal.adm-modal { padding: 22px 24px 20px; max-height: calc(100vh - 60px); overflow-y: auto; }
 .modal.adm-modal h3 { font-size: 23px; margin-top: 0; }
 .appt-summary {

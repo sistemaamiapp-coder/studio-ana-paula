@@ -1439,13 +1439,25 @@ async function viewAccess(root, token) {
         ${cardHead('Acesso do estúdio', 'E-mail e senha usados para entrar no painel')}
         <form class="adm-form" id="accessForm" novalidate>
           <div class="field"><label for="ctLoginEmail">E-mail de acesso</label><input class="input" id="ctLoginEmail" type="email" autocomplete="username" value="${esc(state.user?.email || '')}" required /></div>
-          <div class="field"><label for="ctPass">Nova senha (opcional, mínimo 8 caracteres)</label><input class="input" id="ctPass" type="password" autocomplete="new-password" minlength="8" placeholder="Deixe em branco para manter a atual" /></div>
+          <div class="field"><label for="ctPass">Nova senha (opcional, mínimo 8 caracteres)</label><div class="pass-field"><input class="input" id="ctPass" type="password" autocomplete="new-password" minlength="8" placeholder="Deixe em branco para manter a atual" /><button class="pass-toggle" type="button" id="ctPassToggle" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha">${icon('eye', 16)}</button></div></div>
           <p class="inline-note">Guarde estes dados em local seguro — são eles que abrem o painel do estúdio.</p>
           <p class="form-error" id="acError"></p>
           <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit" id="acSave">Salvar acesso</button></div>
         </form>
       </section>
     </div>`;
+
+  const passInput = $('#ctPass', root);
+  const passToggle = $('#ctPassToggle', root);
+  passToggle?.addEventListener('click', () => {
+    const show = passInput.type === 'password';
+    passInput.type = show ? 'text' : 'password';
+    passToggle.innerHTML = icon(show ? 'eyeOff' : 'eye', 16);
+    passToggle.setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha');
+    passToggle.setAttribute('aria-pressed', String(show));
+    passToggle.title = show ? 'Ocultar senha' : 'Mostrar senha';
+    passInput.focus();
+  });
 
   $('#pixForm', root).addEventListener('submit', async event => {
     event.preventDefault();
