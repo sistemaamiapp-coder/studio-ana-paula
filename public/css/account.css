@@ -105,6 +105,7 @@
 .account-grid { display: grid; grid-template-columns: minmax(0, 1.58fr) minmax(300px, .78fr); gap: 24px; align-items: start; }
 .account-main { display: grid; gap: 20px; min-width: 0; }
 .account-side { display: grid; gap: 18px; position: sticky; top: 96px; }
+.account-shell [id] { scroll-margin-top: 96px; }
 
 /* próximo horário */
 .next-card {

@@ -61,10 +61,6 @@ function canCancel(row) {
   return hours >= Number(state.site.business.cancelHours);
 }
 
-function canConfirm(row) {
-  return row.status === 'pendente' && appointmentDate(row).getTime() > Date.now();
-}
-
 function shortDateParts(iso) {
   const [, m, d] = String(iso).split('-');
   return { day: d, month: new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(`${iso}T12:00:00`)).replace('.', '') };
@@ -108,9 +104,6 @@ function renderNext() {
 
   const dep = next.deposit_status;
   const actions = [];
-  if (canConfirm(next)) {
-    actions.push(`<button class="btn btn-outline btn-sm" type="button" data-confirm="${next.id}">${icon('check', 14)} Confirmar presença</button>`);
-  }
   if (dep !== 'pago') {
     actions.push(`<button class="btn btn-light btn-sm" type="button" data-pix="${next.id}">${icon('pix', 15)} ${dep === 'informado' ? 'Ver sinal Pix' : 'Pagar sinal via Pix'}</button>`);
   }
@@ -196,7 +189,6 @@ function apptRow(row, { history = false } = {}) {
   const actions = [];
 
   if (!history) {
-    if (canConfirm(row)) actions.push(`<button class="btn btn-outline btn-xs" type="button" data-confirm="${row.id}">Confirmar</button>`);
     if (row.deposit_status !== 'pago') actions.push(`<button class="btn btn-outline btn-xs" type="button" data-pix="${row.id}">${icon('pix', 12)} Sinal</button>`);
     if (canCancel(row)) actions.push(`<button class="btn btn-quiet btn-xs" type="button" data-cancel="${row.id}">Cancelar</button>`);
   } else if (row.status === 'concluido') {
@@ -298,7 +290,6 @@ function showLookup(prefill = true) {
   const saved = prefill ? savedIdentity() : null;
   $('#lookupName').value = saved?.name || '';
   $('#lookupPhone').value = saved ? phoneDisplay(saved.phone) : '';
-  $('#lookupBirth').value = saved?.birthdate || '';
   if (window.matchMedia('(min-width: 900px)').matches) $('#lookupName').focus();
 }
 
@@ -445,16 +436,6 @@ async function cancelAppointment(row) {
   }
 }
 
-async function confirmPresence(row) {
-  try {
-    await api(`/api/my/appointments/${row.id}/confirm`, { method: 'POST', body: identityBody() });
-    toast('Presença confirmada. Te esperamos!', { type: 'success' });
-    await refresh();
-  } catch (error) {
-    toast(error.message, { type: 'error' });
-  }
-}
-
 function findAppointment(id) {
   return state.data?.appointments.find(row => String(row.id) === String(id)) || null;
 }
@@ -481,6 +462,18 @@ function startPolling() {
 async function init() {
   hydrateStaticIcons();
   initHeader();
+
+  $$('.site-nav a[href^="#"], .mobile-nav a[href^="#"]').forEach(link => {
+    link.addEventListener('click', event => {
+      const target = document.querySelector(link.getAttribute('href'));
+      if (!target || !target.closest('[hidden]')) return;
+      event.preventDefault();
+      const card = $('#lookupCard');
+      card.hidden = false;
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      $('#lookupName')?.focus({ preventScroll: true });
+    });
+  });
 
   try {
     state.site = await api('/api/site');
@@ -513,7 +506,6 @@ async function init() {
     errorBox.textContent = '';
     const name = $('#lookupName').value.trim().replace(/\s+/g, ' ');
     const phone = normalizePhone($('#lookupPhone').value);
-    const birthdate = $('#lookupBirth').value || null;
     if (name.split(' ').filter(Boolean).length < 2) {
       errorBox.textContent = 'Informe seu nome completo (nome e sobrenome).';
       return;
@@ -524,7 +516,7 @@ async function init() {
     }
     setButtonBusy(button, true, 'Buscando...');
     try {
-      await loadIdentity({ name, phone, birthdate });
+      await loadIdentity({ name, phone });
       showAccount();
       renderAll();
       startPolling();
@@ -555,12 +547,6 @@ async function init() {
   });
 
   document.addEventListener('click', event => {
-    const confirmBtn = event.target.closest('[data-confirm]');
-    if (confirmBtn) {
-      const row = findAppointment(confirmBtn.dataset.confirm);
-      if (row) confirmPresence(row);
-      return;
-    }
     const cancelBtn = event.target.closest('[data-cancel]');
     if (cancelBtn) {
       const row = findAppointment(cancelBtn.dataset.cancel);
