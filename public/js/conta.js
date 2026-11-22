@@ -243,7 +243,7 @@ function renderHeader() {
   $('#accountLead').textContent = upcoming
     ? `Você tem ${upcoming} horário${upcoming === 1 ? '' : 's'} marcado${upcoming === 1 ? '' : 's'}. Tudo organizado aqui, sem depender de conversa no WhatsApp.`
     : 'Seus horários, retornos e histórico em um só lugar. Vamos marcar seu próximo cuidado?';
-  $('#headName').textContent = first || 'Meus agendamentos';
+  $('#headName').textContent = first || 'Minha conta';
   $('#headAvatar').textContent = initials(state.identity.name);
   $('#profileNameText').textContent = state.identity.name || '—';
   $('#profilePhoneText').textContent = phoneDisplay(state.identity.phone) || '—';
@@ -284,7 +284,7 @@ function showLookup(prefill = true) {
   $('#profileNameText').textContent = '—';
   $('#profilePhoneText').textContent = '—';
   $('#profileBirthText').textContent = '—';
-  $('#headName').textContent = 'Meus agendamentos';
+  $('#headName').textContent = 'Minha conta';
   $('#headAvatar').textContent = '··';
   $('#changeBtn').hidden = true;
   const saved = prefill ? savedIdentity() : null;

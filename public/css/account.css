@@ -321,7 +321,7 @@
   transition: border-color .18s, color .18s;
 }
 .account-chip:hover { border-color: var(--rose); color: var(--rose-deep); }
-.account-chip span:last-child { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-chip span:last-child { max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-foot { border-top: 1px solid var(--line); background: rgba(255, 255, 255, .5); }
 .account-foot-inner { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 20px 0; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
 .brand-small .brand-word { font-size: 20px; }
