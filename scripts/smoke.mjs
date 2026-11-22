@@ -219,6 +219,11 @@ async function main() {
   assert.equal(confirmed.status, 200, `confirmação falhou: ${JSON.stringify(confirmed.data)}`);
   assert.equal(confirmed.data.appointment.status, 'confirmado');
 
+  const removedAppt = await call(`/api/admin/appointments/${booking.appointment.id}`, { method: 'DELETE', cookie: adminCookie });
+  assert.equal(removedAppt.status, 200, `exclusão de agendamento falhou: ${JSON.stringify(removedAppt.data)}`);
+  const afterDelete = await call(`/api/admin/appointments?date=${booking.appointment.date}`, { cookie: adminCookie });
+  assert.ok(!afterDelete.data.appointments.some(row => row.id === booking.appointment.id), 'agendamento excluído não deveria aparecer na agenda');
+
   const unauthorized = await call('/api/admin/overview');
   assert.equal(unauthorized.status, 401, 'rota de admin acessível sem login');
 
@@ -236,6 +241,18 @@ async function main() {
   });
   assert.equal(portfolioPost.status, 201, `publicação no portfólio falhou: ${JSON.stringify(portfolioPost.data)}`);
   assert.equal(portfolioPost.data.item.category, 'sobrancelhas-design', 'categoria nova deveria ser normalizada');
+  const photoEdited = await call(`/api/admin/portfolio/${sign.data.id}`, {
+    method: 'PATCH', cookie: adminCookie,
+    body: { title: 'Teste editado', description: 'Descrição editada', category: 'Manicure' }
+  });
+  assert.equal(photoEdited.status, 200, `edição da foto falhou: ${JSON.stringify(photoEdited.data)}`);
+  assert.equal(photoEdited.data.item.title, 'Teste editado');
+  assert.equal(photoEdited.data.item.description, 'Descrição editada');
+  assert.equal(photoEdited.data.item.category, 'manicure');
+  const photoBack = await call(`/api/admin/portfolio/${sign.data.id}`, {
+    method: 'PATCH', cookie: adminCookie, body: { category: 'sobrancelhas-design' }
+  });
+  assert.equal(photoBack.status, 200, 'edição de categoria da foto falhou');
   const siteWithPortfolio = await call('/api/site');
   assert.ok(siteWithPortfolio.data.portfolio.some(item => item.category === 'sobrancelhas-design'), 'categoria nova deveria aparecer no site');
 

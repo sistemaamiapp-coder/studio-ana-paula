@@ -1429,6 +1429,24 @@ export function application({ db, storage, live }) {
     }
 
     const adminAppt = path.match(/^\/api\/admin\/appointments\/([0-9a-f-]{36})$/);
+    if (adminAppt && method === 'DELETE') {
+      await requireAdmin(request);
+      const appt = await appointmentById(adminAppt[1]);
+      if (!appt) fail(404, 'Agendamento não encontrado.');
+      const [users, services] = await Promise.all([loadUsers(), loadServices()]);
+      const view = appointmentView(appt, userMap(users), serviceMap(services));
+      const entries = rows(await db.from('finance').select(COLS.finance).eq('appointment_id', appt.id).limit(100));
+      for (const entry of entries) {
+        rows(await db.from('finance').delete().eq('id', entry.id));
+      }
+      rows(await db.from('appointments').delete().eq('id', appt.id));
+      await notify({
+        type: 'appointment:updated', title: 'Agendamento excluído',
+        message: `${view.client_name} · ${view.service_name} · ${formatDateBR(view.date)} às ${view.time} foi removido da agenda.`,
+        clientId: view.client_id
+      });
+      return json({ ok: true, removedFinance: entries.length });
+    }
     if (adminAppt && method === 'PATCH') {
       await requireAdmin(request);
       const appt = await appointmentById(adminAppt[1]);
@@ -1789,6 +1807,26 @@ export function application({ db, storage, live }) {
     }
 
     const adminPortfolio = path.match(/^\/api\/admin\/portfolio\/([0-9a-f-]{36})$/);
+    if (adminPortfolio && method === 'PATCH') {
+      await requireAdmin(request);
+      const item = (await loadPortfolio()).find(row => String(row.id) === adminPortfolio[1]);
+      if (!item) fail(404, 'Foto não encontrada.');
+      const body = await readBody(request);
+      const title = body.title !== undefined ? clean(body.title, 120) : item.title;
+      if (title.length < 2) fail(400, 'Dê um título para a foto.');
+      const description = body.description !== undefined ? clean(body.description, 300) : item.description;
+      let category = item.category;
+      if (body.category !== undefined) {
+        category = normalizeCategory(body.category);
+        if (!category) fail(400, 'Escolha uma categoria para a foto.');
+        const settings = await getSettings();
+        if (!settings.portfolioCategories.includes(category)) {
+          await savePortfolioCategories([...settings.portfolioCategories, category]);
+        }
+      }
+      rows(await db.from('portfolio').update({ title, description, category }).eq('id', item.id));
+      return json({ item: { ...item, title, description, category, image: portfolioImageUrl(item) } });
+    }
     if (adminPortfolio && method === 'DELETE') {
       await requireAdmin(request);
       const item = (await loadPortfolio()).find(row => String(row.id) === adminPortfolio[1]);

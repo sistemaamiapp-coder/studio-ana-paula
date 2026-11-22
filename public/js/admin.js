@@ -33,6 +33,8 @@ const state = {
   services: [],
   categories: {},
   apptIndex: new Map(),
+  portfolioIndex: new Map(),
+  pfCategories: [],
   clientQuery: '',
   currentClient: null,
   agendaFilter: 'todos',
@@ -249,6 +251,7 @@ function apptRow(appointment, opts = {}) {
       ${!canceled && appointment.deposit_status !== 'pago' ? quickBtn(appointment, 'pago', 'pix', 'Confirmar sinal pago', 'gold') : ''}
       <a class="qbtn wa" href="${waLink(appointment.client_phone, apptMessage(appointment))}" target="_blank" rel="noopener" title="Abrir WhatsApp">${waIcon(13)}</a>
       <button class="qbtn" type="button" data-act="appt-open" data-id="${appointment.id}" title="Editar agendamento">${icon('edit', 13)}</button>
+      <button class="qbtn danger" type="button" data-act="appt-del" data-id="${appointment.id}" title="Excluir agendamento" aria-label="Excluir agendamento">${icon('trash', 13)}</button>
     </div>
   </article>`;
 }
@@ -818,6 +821,9 @@ async function viewPortfolio(root, token) {
   ]);
   if (token !== state.renderToken) return;
   const catKeys = [...new Set([...savedCategories, ...portfolio.map(item => item.category)])];
+  state.pfCategories = catKeys;
+  state.portfolioIndex.clear();
+  portfolio.forEach(item => state.portfolioIndex.set(String(item.id), item));
 
   root.innerHTML = `
     <div class="adm-grid-2">
@@ -859,6 +865,7 @@ async function viewPortfolio(root, token) {
         ${cardHead('Fotos publicadas', `${portfolio.length} imagem(ns) na vitrine`)}
         ${portfolio.length ? `<div class="pf-grid">${portfolio.map(item => `<article class="pf-item">
           <img src="${esc(item.image)}" alt="${esc(item.title)}" loading="lazy" />
+          <button class="pf-edit" type="button" data-act="pf-edit" data-id="${item.id}" title="Editar foto" aria-label="Editar foto">${icon('edit', 13)}</button>
           <button class="pf-del" type="button" data-act="pf-del" data-id="${item.id}" title="Remover foto" aria-label="Remover foto">${icon('trash', 13)}</button>
           <div class="pf-caption"><strong>${esc(item.title)}</strong><small>${esc(categoryLabel(item.category))}</small></div>
         </article>`).join('')}</div>` : `<div class="table-empty">A vitrine ainda está vazia. Publique a primeira foto ao lado.</div>`}
@@ -1001,6 +1008,69 @@ function openCategoryModal(category = null) {
   });
 }
 
+function openPortfolioModal(id) {
+  const item = state.portfolioIndex.get(String(id));
+  if (!item) return;
+  const catKeys = [...new Set([...state.pfCategories, item.category])];
+  const options = catKeys.map(key =>
+    `<option value="${esc(key)}" ${key === item.category ? 'selected' : ''}>${esc(categoryLabel(key))}</option>`).join('');
+  openModal(`
+    <button class="modal-close" type="button" data-close aria-label="Fechar">${icon('x', 18)}</button>
+    <h3>Editar foto do portfólio</h3>
+    <p class="modal-sub">Título, descrição e categoria aparecem na vitrine do site.</p>
+    <form class="adm-form" id="pfeForm" novalidate>
+      <div class="field"><label for="pfeTitle">Título</label><input class="input" id="pfeTitle" maxlength="120" value="${esc(item.title)}" required /></div>
+      <div class="form-grid-2">
+        <div class="field"><label for="pfeCategory">Categoria</label><select class="select" id="pfeCategory">${options}<option value="__new">+ Nova categoria</option></select><input class="input" id="pfeNewCategory" maxlength="40" placeholder="Nome da nova categoria" hidden /></div>
+        <div class="field"><label for="pfeDesc">Descrição curta</label><input class="input" id="pfeDesc" maxlength="300" value="${esc(item.description || '')}" placeholder="Opcional" /></div>
+      </div>
+      <p class="form-error" id="pfeError"></p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" type="button" data-close>Cancelar</button>
+        <button class="btn btn-primary" type="submit" id="pfeSave">Salvar alterações</button>
+      </div>
+    </form>`, {
+    size: 'modal-lg',
+    onMount(el, close) {
+      const select = $('#pfeCategory', el);
+      const newInput = $('#pfeNewCategory', el);
+      select.addEventListener('change', () => {
+        const isNew = select.value === '__new';
+        newInput.hidden = !isNew;
+        if (isNew) newInput.focus();
+        else newInput.value = '';
+      });
+      $('#pfeForm', el).addEventListener('submit', async event => {
+        event.preventDefault();
+        const errorEl = $('#pfeError', el);
+        errorEl.textContent = '';
+        const title = $('#pfeTitle', el).value.trim();
+        if (title.length < 2) { errorEl.textContent = 'Dê um título para a foto.'; return; }
+        let category = select.value;
+        if (category === '__new') {
+          category = newInput.value.trim();
+          if (category.length < 2) { errorEl.textContent = 'Dê um nome para a nova categoria.'; return; }
+        }
+        const button = $('#pfeSave', el);
+        setButtonBusy(button, true, 'Salvando...');
+        try {
+          await api(`/api/admin/portfolio/${item.id}`, {
+            method: 'PATCH',
+            body: { title, category, description: $('#pfeDesc', el).value.trim() }
+          });
+          toast('Foto atualizada no portfólio.', { type: 'success', title: 'Vitrine atualizada' });
+          close();
+          renderView();
+        } catch (error) {
+          if (error.status === 401) { showGate('Sua sessão expirou. Entre novamente.'); return; }
+          errorEl.textContent = error.message;
+          setButtonBusy(button, false);
+        }
+      });
+    }
+  });
+}
+
 async function deleteCategory(key) {
   const confirmed = await confirmAction({
     title: 'Excluir esta categoria?',
@@ -1012,6 +1082,27 @@ async function deleteCategory(key) {
   try {
     const { moved, movedTo } = await api(`/api/admin/portfolio/categories/${enc(key)}`, { method: 'DELETE' });
     toast(moved ? `Categoria excluída · ${moved} foto(s) foram para ${categoryLabel(movedTo)}.` : 'Categoria excluída.', { type: 'success', title: 'Categorias' });
+    renderView();
+  } catch (error) {
+    notifyError(error, 'Não foi possível excluir');
+  }
+}
+
+async function deleteAppointment(id, close = null) {
+  const appointment = state.apptIndex.get(String(id));
+  const confirmed = await confirmAction({
+    title: 'Excluir este agendamento?',
+    message: appointment
+      ? `${appointment.client_name} · ${appointment.service_name} · ${dateLong(appointment.date)} às ${appointment.time}. Os lançamentos de sinal e atendimento ligados a ele saem do caixa.`
+      : 'O agendamento sai da agenda e os lançamentos ligados a ele saem do caixa.',
+    confirmLabel: 'Excluir agendamento',
+    danger: true
+  });
+  if (!confirmed) return;
+  try {
+    await api(`/api/admin/appointments/${id}`, { method: 'DELETE' });
+    if (close) close();
+    toast('Agendamento excluído da agenda.', { type: 'success' });
     renderView();
   } catch (error) {
     notifyError(error, 'Não foi possível excluir');
@@ -1671,7 +1762,10 @@ function openAppointment(id) {
       <div class="field"><label for="apNotes">Observações internas</label><textarea class="textarea" id="apNotes" maxlength="1000">${esc(appointment.notes || '')}</textarea></div>
       <p class="form-error" id="apError"></p>
       <div class="modal-actions" style="justify-content:space-between">
-        <button class="btn btn-quiet" type="button" id="apCancel" style="color:var(--danger)">Cancelar horário</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-quiet" type="button" id="apCancel" style="color:var(--danger)">Cancelar horário</button>
+          <button class="btn btn-quiet" type="button" id="apDelete" style="color:var(--danger)">${icon('trash', 14)} Excluir</button>
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${['pendente', 'confirmado'].includes(appointment.status) ? `<button class="btn btn-outline" type="button" id="apDone">${icon('checkCircle', 14)} Concluir</button>` : ''}
           <button class="btn btn-primary" type="submit" id="apSave">Salvar alterações</button>
@@ -1743,6 +1837,8 @@ function openAppointment(id) {
           notifyError(error);
         }
       });
+
+      $('#apDelete', el)?.addEventListener('click', () => deleteAppointment(appointment.id, close));
     }
   });
 }
@@ -1993,6 +2089,12 @@ function handleAction(button, event) {
       break;
     case 'pf-del':
       deletePortfolio(button.dataset.id);
+      break;
+    case 'pf-edit':
+      openPortfolioModal(button.dataset.id);
+      break;
+    case 'appt-del':
+      deleteAppointment(button.dataset.id);
       break;
     case 'cat-new':
       openCategoryModal();

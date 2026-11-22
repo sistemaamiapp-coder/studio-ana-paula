@@ -416,6 +416,14 @@
   display: grid; place-items: center;
 }
 .pf-del:hover { background: var(--danger); }
+.pf-edit {
+  position: absolute; top: 7px; left: 7px; z-index: 3;
+  width: 26px; height: 26px; border-radius: 8px; border: 0;
+  background: rgba(30, 15, 25, .55); color: #fff; backdrop-filter: blur(4px);
+  display: grid; place-items: center;
+}
+.pf-edit:hover { background: var(--rose); }
+.qbtn.danger:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
 
 /* ---------- financeiro ---------- */
 .fin-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
