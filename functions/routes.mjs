@@ -38,7 +38,7 @@ const BUSINESS = {
   }
 };
 
-const ADMIN = { name: 'Ana Paula Souza', email: 'studio@anapaulasouza.com.br', phone: '27999990000' };
+const ADMIN = { name: 'Ana Paula', email: 'studio@anapaulasouza.com.br', phone: '27999990000' };
 const DEMO_CLIENT = { email: 'cliente@demo.com' };
 const CATEGORIES = {
   cilios: { label: 'Cílios', singular: 'cílios' },
