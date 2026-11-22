@@ -1289,11 +1289,9 @@ async function deleteFinance(id) {
    ============================================================ */
 async function viewReminders(root, token) {
   const [data, site] = await Promise.all([api('/api/admin/reminders'), loadSite().catch(() => null)]);
-  await loadServices().catch(() => []);
   if (token !== state.renderToken) return;
   const biz = site?.business || {};
   const pixKey = biz.pixKey || 'contato@anapaulasouza.com.br';
-  const services = state.services.filter(service => service.active);
 
   const reminderRow = (iconName, tone, title, subtitle, phone, message) => `<div class="rem-row">
     <span class="mini-ico ${tone}">${icon(iconName, 13)}</span>
@@ -1348,21 +1346,6 @@ async function viewReminders(root, token) {
       <section class="adm-card">
         ${cardHead('Aniversariantes do mês', 'Uma mensagem simples fideliza')}
         ${birthdays}
-      </section>
-      <section class="adm-card">
-        ${cardHead('Link de agendamento', 'A cliente escolhe o horário sozinha')}
-        <p class="card-sub">Envie o link geral ou de um serviço específico. A página mostra só os horários livres e o sinal via Pix.</p>
-        <div class="link-share">
-          <input class="input" readonly value="${esc(bookingLink())}" aria-label="Link de agendamento" />
-          <button class="qbtn" type="button" data-act="copy" data-copy="${esc(enc(bookingLink()))}" title="Copiar link" aria-label="Copiar link">${icon('copy', 13)}</button>
-        </div>
-        <div class="link-share">
-          <select class="select" id="linkService" aria-label="Serviço do link" style="height:34px;font-size:11.5px">
-            ${services.map(service => `<option value="${service.id}">${esc(service.name)} · ${money(service.price)}</option>`).join('')}
-          </select>
-          <button class="btn btn-outline btn-xs" type="button" data-act="copy-service-link">Copiar link</button>
-        </div>
-        <p class="inline-note">Dica: cole o link na bio do Instagram e nas respostas automáticas do WhatsApp.</p>
       </section>
     </div>`;
 }
@@ -2145,12 +2128,6 @@ function handleAction(button, event) {
     case 'copy': {
       const text = decodeURIComponent(button.dataset.copy || '');
       copyText(text).then(() => toast('Mensagem copiada. Cole no WhatsApp.', { type: 'success' }));
-      break;
-    }
-    case 'copy-service-link': {
-      const select = $('#linkService');
-      const serviceId = select?.value;
-      copyText(bookingLink(serviceId)).then(() => toast('Link do serviço copiado.', { type: 'success' }));
       break;
     }
     case 'retry':
