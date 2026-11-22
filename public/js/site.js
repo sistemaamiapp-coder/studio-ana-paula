@@ -1,14 +1,7 @@
 import {
-  $, $$, icon, waIcon, esc, money, durationLabel, api, waLink,
+  $, $$, icon, waIcon, esc, api, waLink,
   revealOnScroll, initHeader, toast
 } from './ui.js';
-
-const CATEGORY_LABEL = {
-  cilios: 'Cílios',
-  unhas: 'Unhas em gel',
-  manicure: 'Manicure',
-  pedicure: 'Pedicure'
-};
 
 const PORTFOLIO_LABEL = {
   cilios: 'Cílios',
@@ -30,42 +23,6 @@ function hydrateStaticIcons() {
   $$('[data-wa]').forEach(node => {
     node.innerHTML = waIcon(Number(node.dataset.wa) || 20);
   });
-}
-
-function serviceCard(service) {
-  const cat = CATEGORY_LABEL[service.category] || 'Serviço';
-  const maintenance = Number(service.maintenance_days) > 0
-    ? `<span>${icon('repeat', 13)} manutenção ${service.maintenance_days} dias</span>`
-    : '';
-  return `<article class="service-card">
-    <span class="service-cat">${esc(cat)}</span>
-    <h3>${esc(service.name)}</h3>
-    <p>${esc(service.description)}</p>
-    <div class="service-meta">
-      <span>${icon('clock', 13)} ${durationLabel(service.duration_min)}</span>
-      ${maintenance}
-    </div>
-    <div class="service-bottom">
-      <div class="service-price"><small>a partir de</small><strong>${money(service.price)}</strong></div>
-      <a class="service-book" href="/agendar?servico=${service.id}" aria-label="Agendar ${esc(service.name)}">${icon('arrowRight', 17)}</a>
-    </div>
-  </article>`;
-}
-
-function renderServices(services) {
-  const cilios = services.filter(service => service.category === 'cilios');
-  const nails = services.filter(service => service.category !== 'cilios');
-  const groups = [
-    { title: 'Cílios & olhar', items: cilios },
-    { title: 'Unhas & cuidados', items: nails }
-  ].filter(group => group.items.length);
-
-  $('#serviceGroups').innerHTML = groups.map(group => `
-    <section class="service-group">
-      <div class="service-group-head"><h3>${esc(group.title)}</h3><span></span></div>
-      <div class="service-grid">${group.items.map(serviceCard).join('')}</div>
-    </section>
-  `).join('');
 }
 
 function portfolioCard(item) {
@@ -150,7 +107,6 @@ function applySite(data) {
   siteSignature = signature;
   setWhatsAppLinks(data.business);
   applyContact(data.business);
-  renderServices(data.services);
   renderPortfolio(data.portfolio);
   document.title = `${data.business.name} — ${data.business.tagline}`;
 }
@@ -170,7 +126,6 @@ async function init() {
       try { applySite(await api('/api/site')); } catch { /* tenta no próximo ciclo */ }
     }, 60000);
   } catch (error) {
-    $('#serviceGroups').innerHTML = `<p class="muted">Não foi possível carregar os serviços agora. <a class="link-arrow" href="/agendar">Tente pelo agendamento</a>.</p>`;
     $('#portfolioGrid').innerHTML = '';
     setWhatsAppLinks({ name: 'Studio Ana Paula Souza', whatsapp: '5527999990000' });
     toast('Não foi possível carregar o site agora. Tente novamente em instantes.', { type: 'error' });
