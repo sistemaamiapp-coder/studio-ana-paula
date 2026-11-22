@@ -277,7 +277,8 @@ const VIEWS = {
   portfolio: { eyebrow: 'Vitrine do site', title: 'Portfólio', render: viewPortfolio },
   financeiro: { eyebrow: 'Caixa do estúdio', title: 'Financeiro', render: viewFinance },
   retornos: { eyebrow: 'Relacionamento', title: 'Retornos & lembretes', render: viewReminders },
-  contato: { eyebrow: 'Site · Contato', title: 'Contato & redes', render: viewContact }
+  contato: { eyebrow: 'Site · Contato', title: 'Contato & redes', render: viewContact },
+  acesso: { eyebrow: 'Site · Acesso', title: 'Acesso & recebimento', render: viewAccess }
 };
 
 function route() {
@@ -1372,20 +1373,6 @@ async function viewContact(root, token) {
           <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit" id="ctSave">Salvar contato e redes</button></div>
         </form>
       </section>
-      <section class="adm-card">
-        ${cardHead('Recebimento via Pix', 'Usado no sinal dos agendamentos e nas cobranças')}
-        <form class="adm-form" id="pixForm" novalidate>
-          <div class="field"><label for="pxKey">Chave Pix</label><input class="input" id="pxKey" maxlength="140" value="${esc(settings.pixKey)}" placeholder="e-mail, celular, CPF/CNPJ ou chave aleatória" /></div>
-          <div class="form-grid-2">
-            <div class="field"><label for="pxName">Nome do recebedor</label><input class="input" id="pxName" maxlength="25" value="${esc(settings.pixName)}" /></div>
-            <div class="field"><label for="pxCity">Cidade</label><input class="input" id="pxCity" maxlength="15" value="${esc(settings.pixCity)}" /></div>
-          </div>
-          <div class="field"><label for="pxPercent">Sinal padrão (%)</label><input class="input" id="pxPercent" type="number" min="0" max="100" step="5" value="${esc(settings.depositPercent)}" /></div>
-          <p class="inline-note">O percentual vale para novos agendamentos e pode ser de 0% a 100%.</p>
-          <p class="form-error" id="pxError"></p>
-          <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit" id="pxSave">Salvar recebimento Pix</button></div>
-        </form>
-      </section>
       <section class="adm-card tight">
         ${cardHead('Prévia no site', 'Como os links aparecem para as clientes')}
         <div class="contact-preview">
@@ -1394,16 +1381,6 @@ async function viewContact(root, token) {
           <div class="contact-line">${icon('pin', 15)}<span>${esc(settings.address || 'Sem endereço cadastrado')}</span></div>
         </div>
         <p class="inline-note">O WhatsApp também alimenta o botão flutuante e os lembretes prontos do painel.</p>
-      </section>
-      <section class="adm-card">
-        ${cardHead('Acesso do estúdio', 'E-mail e senha usados para entrar no painel')}
-        <form class="adm-form" id="accessForm" novalidate>
-          <div class="field"><label for="ctLoginEmail">E-mail de acesso</label><input class="input" id="ctLoginEmail" type="email" autocomplete="username" value="${esc(state.user?.email || '')}" required /></div>
-          <div class="field"><label for="ctPass">Nova senha (opcional, mínimo 8 caracteres)</label><input class="input" id="ctPass" type="password" autocomplete="new-password" minlength="8" placeholder="Deixe em branco para manter a atual" /></div>
-          <p class="inline-note">Guarde estes dados em local seguro — são eles que abrem o painel do estúdio.</p>
-          <p class="form-error" id="acError"></p>
-          <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit" id="acSave">Salvar acesso</button></div>
-        </form>
       </section>
     </div>`;
 
@@ -1432,6 +1409,43 @@ async function viewContact(root, token) {
       setButtonBusy(button, false);
     }
   });
+
+}
+
+/* ============================================================
+   acesso e recebimento
+   ============================================================ */
+async function viewAccess(root, token) {
+  const { settings } = await api('/api/admin/settings');
+  if (token !== state.renderToken) return;
+
+  root.innerHTML = `
+    <div class="adm-grid-2">
+      <section class="adm-card">
+        ${cardHead('Recebimento via Pix', 'Usado no sinal dos agendamentos e nas cobranças')}
+        <form class="adm-form" id="pixForm" novalidate>
+          <div class="field"><label for="pxKey">Chave Pix</label><input class="input" id="pxKey" maxlength="140" value="${esc(settings.pixKey)}" placeholder="e-mail, celular, CPF/CNPJ ou chave aleatória" /></div>
+          <div class="form-grid-2">
+            <div class="field"><label for="pxName">Nome do recebedor</label><input class="input" id="pxName" maxlength="25" value="${esc(settings.pixName)}" /></div>
+            <div class="field"><label for="pxCity">Cidade</label><input class="input" id="pxCity" maxlength="15" value="${esc(settings.pixCity)}" /></div>
+          </div>
+          <div class="field"><label for="pxPercent">Sinal padrão (%)</label><input class="input" id="pxPercent" type="number" min="0" max="100" step="5" value="${esc(settings.depositPercent)}" /></div>
+          <p class="inline-note">O percentual vale para novos agendamentos e pode ser de 0% a 100%.</p>
+          <p class="form-error" id="pxError"></p>
+          <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit" id="pxSave">Salvar recebimento Pix</button></div>
+        </form>
+      </section>
+      <section class="adm-card">
+        ${cardHead('Acesso do estúdio', 'E-mail e senha usados para entrar no painel')}
+        <form class="adm-form" id="accessForm" novalidate>
+          <div class="field"><label for="ctLoginEmail">E-mail de acesso</label><input class="input" id="ctLoginEmail" type="email" autocomplete="username" value="${esc(state.user?.email || '')}" required /></div>
+          <div class="field"><label for="ctPass">Nova senha (opcional, mínimo 8 caracteres)</label><input class="input" id="ctPass" type="password" autocomplete="new-password" minlength="8" placeholder="Deixe em branco para manter a atual" /></div>
+          <p class="inline-note">Guarde estes dados em local seguro — são eles que abrem o painel do estúdio.</p>
+          <p class="form-error" id="acError"></p>
+          <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit" id="acSave">Salvar acesso</button></div>
+        </form>
+      </section>
+    </div>`;
 
   $('#pixForm', root).addEventListener('submit', async event => {
     event.preventDefault();
@@ -2260,7 +2274,7 @@ async function init() {
   bindShell();
   bindGate();
   $$('.adm-nav a').forEach(link => {
-    const map = { dashboard: 'dashboard', agenda: 'calendar', clientes: 'users', servicos: 'sparkles', portfolio: 'image', financeiro: 'wallet', retornos: 'repeat', contato: 'instagram' };
+    const map = { dashboard: 'dashboard', agenda: 'calendar', clientes: 'users', servicos: 'sparkles', portfolio: 'image', financeiro: 'wallet', retornos: 'repeat', contato: 'instagram', acesso: 'lock' };
     link.querySelector('.nav-ico').innerHTML = icon(map[link.dataset.view] || 'dashboard', 15);
   });
   $('.adm-share .nav-ico').innerHTML = icon('external', 15);
