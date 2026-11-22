@@ -46,6 +46,13 @@ const CATEGORIES = {
   manicure: { label: 'Manicure', singular: 'manicure' },
   pedicure: { label: 'Pedicure', singular: 'pedicure' }
 };
+
+function normalizeCategory(value) {
+  return String(value || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '').slice(0, 40);
+}
 const STATUS = ['pendente', 'confirmado', 'concluido', 'cancelado', 'faltou'];
 const STATUS_LABEL = {
   pendente: 'aguardando confirmação',
@@ -1681,7 +1688,7 @@ export function application({ db, storage, live }) {
       if (!objectPath.startsWith(`portfolio/${id}.`)) fail(400, 'Envie uma foto para publicar.');
       const title = clean(body.title, 120);
       const description = clean(body.description, 300);
-      const category = Object.keys(CATEGORIES).includes(body.category) ? body.category : 'cilios';
+      const category = normalizeCategory(body.category) || 'cilios';
       if (title.length < 2) fail(400, 'Dê um título para a foto.');
       const size = Number(body.size);
       if (!(size > 0 && size <= 8 * 1024 * 1024)) fail(400, 'A imagem pode ter no máximo 8 MB.');

@@ -225,6 +225,21 @@ async function main() {
   const registerGone = await call('/api/auth/register', { method: 'POST', body: {} });
   assert.equal(registerGone.status, 404, 'cadastro de cliente com senha não deveria existir');
 
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  const sign = await call('/api/admin/portfolio/sign', { method: 'POST', cookie: adminCookie, body: { type: 'image/png', size: png.length } });
+  assert.equal(sign.status, 201, `assinatura do upload falhou: ${JSON.stringify(sign.data)}`);
+  const upload = await fetch(`${BASE}${sign.data.signedUrl}`, { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: png });
+  assert.ok(upload.ok, 'upload da foto de teste falhou');
+  const portfolioPost = await call('/api/admin/portfolio', {
+    method: 'POST', cookie: adminCookie,
+    body: { id: sign.data.id, path: sign.data.path, size: png.length, title: 'Teste de categoria', category: 'Sobrancelhas & Design' }
+  });
+  assert.equal(portfolioPost.status, 201, `publicação no portfólio falhou: ${JSON.stringify(portfolioPost.data)}`);
+  assert.equal(portfolioPost.data.item.category, 'sobrancelhas-design', 'categoria nova deveria ser normalizada');
+  const siteWithPortfolio = await call('/api/site');
+  assert.ok(siteWithPortfolio.data.portfolio.some(item => item.category === 'sobrancelhas-design'), 'categoria nova deveria aparecer no site');
+  await call(`/api/admin/portfolio/${sign.data.id}`, { method: 'DELETE', cookie: adminCookie });
+
   const passChanged = await call('/api/admin/settings', { method: 'PATCH', cookie: adminCookie, body: { adminPassword: 'nova-senha-2026' } });
   assert.equal(passChanged.status, 200, `troca de senha falhou: ${JSON.stringify(passChanged.data)}`);
   const relogin = await call('/api/auth/login', { method: 'POST', body: { email: ADMIN_EMAIL, password: 'nova-senha-2026' } });

@@ -83,7 +83,10 @@ function toneFor(name) {
 }
 
 function categoryLabel(key) {
-  return state.categories[key]?.label || CATEGORY_FALLBACK[key] || key || 'Serviço';
+  const known = state.categories[key]?.label || CATEGORY_FALLBACK[key];
+  if (known) return known;
+  const text = String(key || '').replace(/[-_]+/g, ' ').trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : 'Serviço';
 }
 
 function maintChip(daysLeft) {
@@ -815,6 +818,7 @@ async function viewPortfolio(root, token) {
   ]);
   if (token !== state.renderToken) return;
   const cats = state.categories;
+  const catKeys = [...new Set([...Object.keys(cats), ...portfolio.map(item => item.category)])];
 
   root.innerHTML = `
     <div class="adm-grid-2">
@@ -829,7 +833,7 @@ async function viewPortfolio(root, token) {
           </label>
           <div class="field"><label for="pfTitle">Título</label><input class="input" id="pfTitle" maxlength="120" placeholder="Ex: Volume brasileiro iluminado" required /></div>
           <div class="form-grid-2">
-            <div class="field"><label for="pfCategory">Categoria</label><select class="select" id="pfCategory">${Object.keys(cats).map(key => `<option value="${key}">${esc(categoryLabel(key))}</option>`).join('')}</select></div>
+            <div class="field"><label for="pfCategory">Categoria</label><select class="select" id="pfCategory">${catKeys.map(key => `<option value="${esc(key)}">${esc(categoryLabel(key))}</option>`).join('')}<option value="__new">+ Nova categoria</option></select><input class="input" id="pfNewCategory" maxlength="40" placeholder="Nome da nova categoria" hidden /></div>
             <div class="field"><label for="pfDesc">Descrição curta</label><input class="input" id="pfDesc" maxlength="300" placeholder="Opcional" /></div>
           </div>
           <p class="form-error" id="pfError"></p>
@@ -848,6 +852,14 @@ async function viewPortfolio(root, token) {
 
   const fileInput = $('#pfFile', root);
   const drop = $('#pfDrop', root);
+  const categorySelect = $('#pfCategory', root);
+  const newCategoryInput = $('#pfNewCategory', root);
+  categorySelect?.addEventListener('change', () => {
+    const isNew = categorySelect.value === '__new';
+    newCategoryInput.hidden = !isNew;
+    if (isNew) newCategoryInput.focus();
+    else newCategoryInput.value = '';
+  });
   fileInput?.addEventListener('change', () => {
     const file = fileInput.files?.[0];
     if (!file) { drop.classList.remove('has-file'); return; }
@@ -870,6 +882,11 @@ async function viewPortfolio(root, token) {
     if (!file) { errorEl.textContent = 'Escolha uma foto para publicar.'; return; }
     const title = $('#pfTitle', root).value.trim();
     if (title.length < 2) { errorEl.textContent = 'Dê um título para a foto.'; return; }
+    let category = categorySelect.value;
+    if (category === '__new') {
+      category = newCategoryInput.value.trim();
+      if (category.length < 2) { errorEl.textContent = 'Dê um nome para a nova categoria.'; return; }
+    }
     const button = $('#pfSave', root);
     setButtonBusy(button, true, 'Publicando...');
     try {
@@ -892,7 +909,7 @@ async function viewPortfolio(root, token) {
           path: sign.path,
           size: file.size,
           title,
-          category: $('#pfCategory', root).value,
+          category,
           description: $('#pfDesc', root).value.trim()
         }
       });

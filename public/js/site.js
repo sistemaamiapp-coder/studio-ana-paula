@@ -10,6 +10,19 @@ const CATEGORY_LABEL = {
   pedicure: 'Pedicure'
 };
 
+const PORTFOLIO_LABEL = {
+  cilios: 'Cílios',
+  unhas: 'Unhas',
+  manicure: 'Manicure',
+  pedicure: 'Pedicure'
+};
+
+function portfolioCategory(key) {
+  if (PORTFOLIO_LABEL[key]) return PORTFOLIO_LABEL[key];
+  const text = String(key || '').replace(/[-_]+/g, ' ').trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : 'Portfólio';
+}
+
 function hydrateStaticIcons() {
   $$('[data-icon]').forEach(node => {
     node.innerHTML = icon(node.dataset.icon, Number(node.dataset.size) || 20);
@@ -56,7 +69,7 @@ function renderServices(services) {
 }
 
 function portfolioCard(item) {
-  const category = item.category === 'cilios' ? 'Cílios' : 'Unhas';
+  const category = portfolioCategory(item.category);
   return `<button class="portfolio-card" type="button" data-lightbox data-image="${esc(item.image)}" data-title="${esc(item.title)}" data-description="${esc(item.description || '')}" aria-label="Ampliar ${esc(item.title)}">
     <span class="portfolio-tag">${esc(category)}</span>
     <img src="${esc(item.image)}" alt="${esc(item.title)}" loading="lazy">
