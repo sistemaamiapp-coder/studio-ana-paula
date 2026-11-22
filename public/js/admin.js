@@ -1141,7 +1141,7 @@ async function viewFinance(root, token) {
 
   root.innerHTML = `
     <section class="adm-card tight">
-      <div class="card-head">
+      <div class="card-head fin-head">
         <div><h2>Caixa do estúdio</h2><p>Período de ${dateShort(data.from)} a ${dateShort(data.to)}</p></div>
         <div class="fin-filter">
           <label class="date-pill">${icon('calendar', 13)}<input type="date" id="finFrom" value="${data.from}" aria-label="Data inicial" /></label>
