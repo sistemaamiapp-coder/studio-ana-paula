@@ -302,6 +302,17 @@ h1 em, h2 em {
   font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase;
   color: var(--rose); font-weight: 700; transform: translateY(-2px);
 }
+.brand-group { display: flex; align-items: center; gap: 6px; }
+.brand-lock {
+  width: 30px; height: 30px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; color: var(--muted);
+  border: 1px solid transparent; opacity: .72;
+  transition: color .2s, background .2s, border-color .2s, opacity .2s;
+}
+.brand-lock:hover {
+  color: var(--rose-deep); opacity: 1;
+  background: var(--rose-tint); border-color: rgba(184, 82, 111, .18);
+}
 .site-nav { display: flex; gap: 27px; margin-left: auto; }
 .site-nav a { font-size: 14px; font-weight: 500; color: var(--ink-2); position: relative; }
 .site-nav a::after {
