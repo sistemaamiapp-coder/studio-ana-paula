@@ -256,6 +256,25 @@ async function main() {
   const siteWithPortfolio = await call('/api/site');
   assert.ok(siteWithPortfolio.data.portfolio.some(item => item.category === 'sobrancelhas-design'), 'categoria nova deveria aparecer no site');
 
+  const sign2 = await call('/api/admin/portfolio/sign', { method: 'POST', cookie: adminCookie, body: { type: 'image/png', size: png.length } });
+  assert.equal(sign2.status, 201, 'assinatura do segundo upload falhou');
+  await fetch(`${BASE}${sign2.data.signedUrl}`, { method: 'PUT', headers: { 'Content-Type': 'image/png' }, body: png });
+  const secondPost = await call('/api/admin/portfolio', {
+    method: 'POST', cookie: adminCookie,
+    body: { id: sign2.data.id, path: sign2.data.path, size: png.length, title: 'Foto reordenada', category: 'Manicure' }
+  });
+  assert.equal(secondPost.status, 201, `segunda publicação falhou: ${JSON.stringify(secondPost.data)}`);
+  const reordered = await call('/api/admin/portfolio/order', {
+    method: 'PUT', cookie: adminCookie,
+    body: { ids: [sign2.data.id, sign.data.id] }
+  });
+  assert.equal(reordered.status, 200, `reordenação falhou: ${JSON.stringify(reordered.data)}`);
+  const adminAfterOrder = await call('/api/admin/portfolio', { cookie: adminCookie });
+  assert.equal(String(adminAfterOrder.data.portfolio[0].id), sign2.data.id, 'primeira foto deveria ser a reordenada');
+  assert.equal(String(adminAfterOrder.data.portfolio[1].id), sign.data.id, 'segunda foto deveria ser a anterior');
+  const siteAfterOrder = await call('/api/site');
+  assert.equal(String(siteAfterOrder.data.portfolio[0].id), sign2.data.id, 'site deveria mostrar primeiro a foto reordenada');
+
   const catAdded = await call('/api/admin/portfolio/categories', { method: 'POST', cookie: adminCookie, body: { name: 'Design de Olhar' } });
   assert.equal(catAdded.status, 201, `criação de categoria falhou: ${JSON.stringify(catAdded.data)}`);
   assert.ok(catAdded.data.categories.includes('design-de-olhar'), 'categoria criada deveria entrar na lista');
@@ -271,6 +290,7 @@ async function main() {
   const siteAfterMove = await call('/api/site');
   assert.ok(siteAfterMove.data.portfolio.some(item => item.category === catWithPhotos.data.movedTo), 'foto movida deveria aparecer na categoria de destino');
   await call(`/api/admin/portfolio/${sign.data.id}`, { method: 'DELETE', cookie: adminCookie });
+  await call(`/api/admin/portfolio/${sign2.data.id}`, { method: 'DELETE', cookie: adminCookie });
 
   const passChanged = await call('/api/admin/settings', { method: 'PATCH', cookie: adminCookie, body: { adminPassword: 'nova-senha-2026' } });
   assert.equal(passChanged.status, 200, `troca de senha falhou: ${JSON.stringify(passChanged.data)}`);

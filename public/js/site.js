@@ -132,17 +132,6 @@ function applyContact(business) {
     link.hidden = !instagram;
   });
 
-  const email = $('#footerEmail');
-  if (email) {
-    if (business.email) {
-      email.href = `mailto:${business.email}`;
-      email.textContent = business.email;
-      email.hidden = false;
-    } else {
-      email.hidden = true;
-    }
-  }
-
   const address = $('#footerAddress');
   if (address) address.textContent = business.address || '';
 }

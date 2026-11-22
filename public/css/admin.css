@@ -423,6 +423,12 @@
   display: grid; place-items: center;
 }
 .pf-edit:hover { background: var(--rose); }
+.pf-tools {
+  position: absolute; top: 7px; left: 7px; z-index: 3;
+  display: grid; gap: 5px;
+}
+.pf-tools .pf-edit { position: static; }
+.pf-tools .pf-edit[disabled] { opacity: .35; pointer-events: none; }
 .qbtn.danger:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
 
 /* ---------- financeiro ---------- */

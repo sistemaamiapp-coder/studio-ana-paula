@@ -1806,6 +1806,26 @@ export function application({ db, storage, live }) {
       return json({ item: { ...item, image: portfolioImageUrl(item) } }, 201);
     }
 
+    if (path === '/api/admin/portfolio/order' && method === 'PUT') {
+      await requireAdmin(request);
+      const body = await readBody(request);
+      const ids = Array.isArray(body.ids) ? [...new Set(body.ids.map(String))] : [];
+      const portfolio = await loadPortfolio();
+      const byId = new Map(portfolio.map(item => [String(item.id), item]));
+      const ordered = ids.filter(id => byId.has(id));
+      const rest = portfolio
+        .filter(item => !ordered.includes(String(item.id)))
+        .sort((a, b) => (a.sort - b.sort) || String(a.id).localeCompare(String(b.id)));
+      const sequence = [...ordered, ...rest.map(item => String(item.id))];
+      if (!sequence.length) fail(400, 'Publique uma foto antes de definir a ordem.');
+      for (let index = 0; index < sequence.length; index += 1) {
+        const item = byId.get(sequence[index]);
+        if (Number(item.sort) === index + 1) continue;
+        rows(await db.from('portfolio').update({ sort: index + 1 }).eq('id', item.id));
+      }
+      return json({ ok: true, ids: sequence });
+    }
+
     const adminPortfolio = path.match(/^\/api\/admin\/portfolio\/([0-9a-f-]{36})$/);
     if (adminPortfolio && method === 'PATCH') {
       await requireAdmin(request);

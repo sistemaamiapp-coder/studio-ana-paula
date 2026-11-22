@@ -863,9 +863,13 @@ async function viewPortfolio(root, token) {
       </section>
       <section class="adm-card">
         ${cardHead('Fotos publicadas', `${portfolio.length} imagem(ns) na vitrine`)}
-        ${portfolio.length ? `<div class="pf-grid">${portfolio.map(item => `<article class="pf-item">
+        ${portfolio.length ? `<p class="inline-note" style="margin:0 0 10px">Use as setas para escolher quais fotos aparecem primeiro no site.</p><div class="pf-grid">${portfolio.map((item, index) => `<article class="pf-item">
           <img src="${esc(item.image)}" alt="${esc(item.title)}" loading="lazy" />
-          <button class="pf-edit" type="button" data-act="pf-edit" data-id="${item.id}" title="Editar foto" aria-label="Editar foto">${icon('edit', 13)}</button>
+          <div class="pf-tools">
+            <button class="pf-edit" type="button" data-act="pf-edit" data-id="${item.id}" title="Editar foto" aria-label="Editar foto">${icon('edit', 13)}</button>
+            <button class="pf-edit" type="button" data-act="pf-up" data-id="${item.id}" title="Mover para cima" aria-label="Mover foto para cima" ${index === 0 ? 'disabled' : ''}>${icon('chevronUp', 13)}</button>
+            <button class="pf-edit" type="button" data-act="pf-down" data-id="${item.id}" title="Mover para baixo" aria-label="Mover foto para baixo" ${index === portfolio.length - 1 ? 'disabled' : ''}>${icon('chevronDown', 13)}</button>
+          </div>
           <button class="pf-del" type="button" data-act="pf-del" data-id="${item.id}" title="Remover foto" aria-label="Remover foto">${icon('trash', 13)}</button>
           <div class="pf-caption"><strong>${esc(item.title)}</strong><small>${esc(categoryLabel(item.category))}</small></div>
         </article>`).join('')}</div>` : `<div class="table-empty">A vitrine ainda está vazia. Publique a primeira foto ao lado.</div>`}
@@ -943,6 +947,21 @@ async function viewPortfolio(root, token) {
       setButtonBusy(button, false);
     }
   });
+}
+
+async function movePortfolio(id, delta) {
+  const order = [...state.portfolioIndex.keys()];
+  const index = order.indexOf(String(id));
+  const target = index + delta;
+  if (index < 0 || target < 0 || target >= order.length) return;
+  [order[index], order[target]] = [order[target], order[index]];
+  try {
+    await api('/api/admin/portfolio/order', { method: 'PUT', body: { ids: order } });
+    toast(delta < 0 ? 'Foto movida para cima.' : 'Foto movida para baixo.', { type: 'success' });
+    renderView();
+  } catch (error) {
+    notifyError(error, 'Não foi possível reordenar');
+  }
 }
 
 async function deletePortfolio(id) {
@@ -1363,12 +1382,9 @@ async function viewContact(root, token) {
         <form class="adm-form" id="contactForm" novalidate>
           <div class="form-grid-2">
             <div class="field"><label for="ctWhats">WhatsApp com DDD</label><input class="input" id="ctWhats" value="${esc(settings.whatsappDisplay)}" inputmode="tel" required /></div>
-            <div class="field"><label for="ctEmail">E-mail de contato</label><input class="input" id="ctEmail" type="email" value="${esc(settings.email)}" placeholder="contato@seuestudio.com.br" /></div>
-          </div>
-          <div class="form-grid-2">
             <div class="field"><label for="ctInsta">Instagram</label><input class="input" id="ctInsta" value="${esc(instagramLabel)}" placeholder="@seuestudio" /></div>
-            <div class="field"><label for="ctAddress">Endereço exibido</label><input class="input" id="ctAddress" maxlength="160" value="${esc(settings.address)}" placeholder="Bairro, cidade ou frase de atendimento" /></div>
           </div>
+          <div class="field"><label for="ctAddress">Endereço exibido</label><input class="input" id="ctAddress" maxlength="160" value="${esc(settings.address)}" placeholder="Bairro, cidade ou frase de atendimento" /></div>
           <p class="form-error" id="ctError"></p>
           <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit" id="ctSave">Salvar contato e redes</button></div>
         </form>
@@ -1391,7 +1407,6 @@ async function viewContact(root, token) {
         ${cardHead('Prévia no site', 'Como os links aparecem para as clientes')}
         <div class="contact-preview">
           <a class="contact-line" href="${esc(waLink(settings.whatsapp, 'Olá! Vim pelo site.'))}" target="_blank" rel="noopener">${waIcon(15)}<span>${esc(settings.whatsappDisplay)}</span></a>
-          ${settings.email ? `<a class="contact-line" href="mailto:${esc(settings.email)}">${icon('send', 15)}<span>${esc(settings.email)}</span></a>` : `<div class="contact-line muted">${icon('send', 15)}<span>Sem e-mail cadastrado</span></div>`}
           ${settings.instagram ? `<a class="contact-line" href="https://instagram.com/${esc(settings.instagram)}" target="_blank" rel="noopener">${icon('instagram', 15)}<span>${esc(instagramLabel)}</span></a>` : `<div class="contact-line muted">${icon('instagram', 15)}<span>Sem Instagram cadastrado</span></div>`}
           <div class="contact-line">${icon('pin', 15)}<span>${esc(settings.address || 'Sem endereço cadastrado')}</span></div>
         </div>
@@ -1420,7 +1435,6 @@ async function viewContact(root, token) {
         method: 'PATCH',
         body: {
           whatsapp: $('#ctWhats', root).value.trim(),
-          email: $('#ctEmail', root).value.trim(),
           instagram: $('#ctInsta', root).value.trim(),
           address: $('#ctAddress', root).value.trim()
         }
@@ -2092,6 +2106,12 @@ function handleAction(button, event) {
       break;
     case 'pf-edit':
       openPortfolioModal(button.dataset.id);
+      break;
+    case 'pf-up':
+      movePortfolio(button.dataset.id, -1);
+      break;
+    case 'pf-down':
+      movePortfolio(button.dataset.id, 1);
       break;
     case 'appt-del':
       deleteAppointment(button.dataset.id);
