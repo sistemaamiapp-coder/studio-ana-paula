@@ -232,6 +232,15 @@ async function main() {
   const oldLogin = await call('/api/auth/login', { method: 'POST', body: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD } });
   assert.equal(oldLogin.status, 401, 'senha antiga deveria ser recusada');
 
+  const badAccessEmail = await call('/api/admin/settings', { method: 'PATCH', cookie: adminCookie, body: { adminEmail: 'sem-arroba' } });
+  assert.equal(badAccessEmail.status, 400, 'e-mail de acesso inválido deveria ser recusado');
+  const emailChanged = await call('/api/admin/settings', { method: 'PATCH', cookie: adminCookie, body: { adminEmail: 'acesso@studio-teste.com' } });
+  assert.equal(emailChanged.status, 200, `troca de e-mail falhou: ${JSON.stringify(emailChanged.data)}`);
+  const newEmailLogin = await call('/api/auth/login', { method: 'POST', body: { email: 'acesso@studio-teste.com', password: 'nova-senha-2026' } });
+  assert.equal(newEmailLogin.status, 200, 'login com o novo e-mail falhou');
+  const oldEmailLogin = await call('/api/auth/login', { method: 'POST', body: { email: ADMIN_EMAIL, password: 'nova-senha-2026' } });
+  assert.equal(oldEmailLogin.status, 401, 'e-mail antigo deveria ser recusado');
+
   console.log('OK — roteiro completo passou (site, agenda sem login, Pix, painel, tempo real).');
 }
 

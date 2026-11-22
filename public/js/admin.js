@@ -1212,12 +1212,13 @@ async function viewContact(root, token) {
         <p class="inline-note">O WhatsApp também alimenta o botão flutuante e os lembretes prontos do painel.</p>
       </section>
       <section class="adm-card">
-        ${cardHead('Acesso do estúdio', 'Troque a senha do painel quando quiser')}
-        <form class="adm-form" id="passForm" novalidate>
-          <div class="field"><label for="ctPass">Nova senha (mínimo 8 caracteres)</label><input class="input" id="ctPass" type="password" autocomplete="new-password" minlength="8" placeholder="Digite a nova senha" required /></div>
-          <p class="inline-note">Login do painel: <strong>${esc(state.user?.email || 'studio@anapaulasouza.com.br')}</strong></p>
-          <p class="form-error" id="pwError"></p>
-          <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit" id="pwSave">Atualizar senha</button></div>
+        ${cardHead('Acesso do estúdio', 'E-mail e senha usados para entrar no painel')}
+        <form class="adm-form" id="accessForm" novalidate>
+          <div class="field"><label for="ctLoginEmail">E-mail de acesso</label><input class="input" id="ctLoginEmail" type="email" autocomplete="username" value="${esc(state.user?.email || '')}" required /></div>
+          <div class="field"><label for="ctPass">Nova senha (opcional, mínimo 8 caracteres)</label><input class="input" id="ctPass" type="password" autocomplete="new-password" minlength="8" placeholder="Deixe em branco para manter a atual" /></div>
+          <p class="inline-note">Guarde estes dados em local seguro — são eles que abrem o painel do estúdio.</p>
+          <p class="form-error" id="acError"></p>
+          <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" type="submit" id="acSave">Salvar acesso</button></div>
         </form>
       </section>
     </div>`;
@@ -1276,20 +1277,28 @@ async function viewContact(root, token) {
     }
   });
 
-  $('#passForm', root).addEventListener('submit', async event => {
+  $('#accessForm', root).addEventListener('submit', async event => {
     event.preventDefault();
-    const errorEl = $('#pwError', root);
+    const errorEl = $('#acError', root);
     errorEl.textContent = '';
-    const input = $('#ctPass', root);
-    const next = input.value.trim();
-    if (next.length < 8) { errorEl.textContent = 'A nova senha precisa ter pelo menos 8 caracteres.'; return; }
-    const button = $('#pwSave', root);
-    setButtonBusy(button, true, 'Atualizando...');
+    const email = $('#ctLoginEmail', root).value.trim().toLowerCase();
+    const password = $('#ctPass', root).value;
+    if (!email) { errorEl.textContent = 'Informe o e-mail de acesso.'; return; }
+    if (password && password.length < 8) { errorEl.textContent = 'A nova senha precisa ter pelo menos 8 caracteres.'; return; }
+    if (!password && email === String(state.user?.email || '').toLowerCase()) {
+      errorEl.textContent = 'Informe uma nova senha ou altere o e-mail.';
+      return;
+    }
+    const button = $('#acSave', root);
+    setButtonBusy(button, true, 'Salvando...');
     try {
-      await api('/api/admin/settings', { method: 'PATCH', body: { adminPassword: next } });
-      input.value = '';
-      setButtonBusy(button, false);
-      toast('A senha do painel foi atualizada.', { type: 'success', title: 'Senha alterada' });
+      const body = { adminEmail: email };
+      if (password) body.adminPassword = password;
+      await api('/api/admin/settings', { method: 'PATCH', body });
+      state.user = { ...state.user, email };
+      fillSidebar();
+      toast(password ? 'E-mail e senha do painel atualizados.' : 'E-mail de acesso atualizado.', { type: 'success', title: 'Acesso atualizado' });
+      renderView();
     } catch (error) {
       if (error.status === 401) { showGate('Sua sessão expirou. Entre novamente.'); return; }
       errorEl.textContent = error.message;

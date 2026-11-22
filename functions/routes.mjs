@@ -605,6 +605,15 @@ export function application({ db, storage, live }) {
     }));
   }
 
+  async function setAdminEmail(email) {
+    const admins = rows(await db.from('users').select(COLS.users).eq('role', 'admin').limit(1));
+    const admin = admins[0];
+    if (!admin) fail(400, 'Conta do estúdio não encontrada.');
+    const taken = rows(await db.from('users').select(COLS.users).eq('email', email).limit(1));
+    if (taken[0] && String(taken[0].id) !== String(admin.id)) fail(400, 'Este e-mail já está em uso.');
+    rows(await db.from('users').update({ email }).eq('id', admin.id));
+  }
+
   async function notify(event) {
     const record = {
       id: uuid(),
@@ -1860,12 +1869,17 @@ export function application({ db, storage, live }) {
         if (!Number.isFinite(percent) || percent < 0 || percent > 100) fail(400, 'O sinal deve ficar entre 0% e 100%.');
         values.depositPercent = String(Math.round(percent));
       }
+      if (body.adminEmail !== undefined) {
+        const email = clean(body.adminEmail, 160).toLowerCase();
+        if (!isValidEmail(email)) fail(400, 'Confira o e-mail de acesso.');
+        await setAdminEmail(email);
+      }
       if (body.adminPassword !== undefined) {
         const next = String(body.adminPassword || '');
         if (next.length < 8) fail(400, 'A nova senha precisa ter pelo menos 8 caracteres.');
         await setAdminPassword(next);
       }
-      if (!Object.keys(values).length && body.adminPassword === undefined) fail(400, 'Nenhuma alteração informada.');
+      if (!Object.keys(values).length && body.adminPassword === undefined && body.adminEmail === undefined) fail(400, 'Nenhuma alteração informada.');
       if (Object.keys(values).length) await saveSettings(values);
       return json({ settings: await getSettings() });
     }
